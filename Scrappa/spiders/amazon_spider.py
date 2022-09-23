@@ -1,6 +1,6 @@
-import scrapy
 import re
 import csv
+import scrapy
 
 class AmazonSpider(scrapy.Spider):
     name = "amazon"
