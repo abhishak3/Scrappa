@@ -1,7 +1,10 @@
 # Scrappa
 The Web Crawler to scrape out data of all products from multiple pages (atleast 20) from the following link:
 
-[!link here]
+[Required Link](https://www.amazon.in/s?k=bags&crid=2M096C61O4MLT&qid=1653308124&sprefix=ba%2Caps%2C283&ref=sr_pg_1)
+```
+https://www.amazon.in/s?k=bags&crid=2M096C61O4MLT&qid=1653308124&sprefix=ba%2Caps%2C283&ref=sr_pg_1
+```
 
 Scrapped out data is stored in file named `products_1.csv`.
 
