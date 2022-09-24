@@ -5,6 +5,7 @@ import scrapy
 class AmazonSpider(scrapy.Spider):
     name = "amazon"
     URL = "https://www.amazon.in/s?k=bags&crid=2M096C61O4MLT&qid=1653308124&sprefix=ba%2Caps%2C283&ref=sr_pg_1"
+    user_agent = 'Mozilla/5.0 (Windows NT 6.3; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/44.0.2403.157 Safari/537.36'
 
     fieldnames = [
         "item_name", "item_url", "item_price", "item_rating", 
@@ -59,10 +60,13 @@ class AmazonSpider(scrapy.Spider):
         """Parse additional information from product's page"""
 
         info = response.meta["item_info"]
-        asin = re.findall(r"[0-9A-Z]{10}", info["item_url"]) # regex for ASIN number
-        info["asin"] = asin[-1] if asin else None
         info["description"] = self.get_description(response)
         info["manufacturer"] = self.get_manufacturer(response)
+
+        # ASIN from URL
+        asin_pattern = re.compile(r"/dp/([0-9A-Z]{10})")
+        asin = re.search(asin_pattern, info["item_url"])
+        info["asin"] = asin[1] if asin else None
 
         # getting absolute url
         info["item_url"] = response.urljoin(info["item_url"])
@@ -84,8 +88,7 @@ class AmazonSpider(scrapy.Spider):
         """Parses manufacturer name from given product's page."""
 
         manufacturers = response.xpath(
-            "//*[contains(text(), 'Manufacturer')]/following-sibling::*/text()|"+
-            "//*[contains(text(), 'Manufacturer')]/ancestor::div/following-sibling::div//text()"
+            "//*[contains(text(), 'Manufacturer')]/following-sibling::*/text()"
         ).getall()
 
         if not manufacturers: return None
