@@ -8,6 +8,9 @@ https://www.amazon.in/s?k=bags&crid=2M096C61O4MLT&qid=1653308124&sprefix=ba%2Cap
 
 Scrapped out data is stored in file named `products_1.csv`.
 
+## Note
+Sometimes Error(503) Service not available can occur as a result of amazon reporting non-human behaviour on our crawler.
+
 ## Installation and Running
 ### Without virutal environment
 1. Install all dependencies from `requirements.txt` file or from the `Pipenv`.
