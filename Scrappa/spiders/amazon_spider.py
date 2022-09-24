@@ -5,7 +5,7 @@ import scrapy
 class AmazonSpider(scrapy.Spider):
     name = "amazon"
     URL = "https://www.amazon.in/s?k=bags&crid=2M096C61O4MLT&qid=1653308124&sprefix=ba%2Caps%2C283&ref=sr_pg_1"
-    user_agent = 'Mozilla/5.0 (Windows NT 6.3; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/44.0.2403.157 Safari/537.36'
+    user_agent = 'Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:15.0) Gecko/20100101 Firefox/15.0.1'
 
     fieldnames = [
         "item_name", "item_url", "item_price", "item_rating", 
@@ -38,7 +38,7 @@ class AmazonSpider(scrapy.Spider):
         
             items_info.append({
                 "item_name": item_name,
-                "item_url": item_url,
+                "item_url": response.urljoin(item_url),
                 "item_price": item_price,
                 "item_rating": item_rating,
                 "item_no_of_reviews": item_no_of_reviews
@@ -46,7 +46,7 @@ class AmazonSpider(scrapy.Spider):
 
         # redirecting to each product's page for scraping more information
         for info in items_info:
-            request = response.follow(info["item_url"], callback=self.parse_product)
+            request = scrapy.Request(url=info["item_url"], callback=self.parse_product)
             request.meta["item_info"] = info
             yield request
 
@@ -68,15 +68,12 @@ class AmazonSpider(scrapy.Spider):
         asin = re.search(asin_pattern, info["item_url"])
         info["asin"] = asin[1] if asin else None
 
-        # getting absolute url
-        info["item_url"] = response.urljoin(info["item_url"])
+        # # getting absolute url
+        # info["item_url"] = response.urljoin(info["item_url"])
 
         # formatting item_rating
-        info["item_rating"] = info["item_rating"].strip().split()[0]
-        try:
-            info["item_rating"] = float(info["item_rating"])
-        except ValueError:
-            pass
+        if info["item_rating"]:
+            info["item_rating"] = info["item_rating"].strip().split()[0]
 
         # save each entry to csv file
         with open("products_1.csv", "a") as csvFile:
@@ -88,7 +85,10 @@ class AmazonSpider(scrapy.Spider):
         """Parses manufacturer name from given product's page."""
 
         manufacturers = response.xpath(
-            "//*[contains(text(), 'Manufacturer')]/following-sibling::*//text()"
+            "//*[contains(text(), 'Manufacturer')]/following-sibling::*"+
+            "[not(self::style or self::link or self::script)]//text()|"+
+            "//*[contains(text(), 'Manufacturer')][not(self::style)]/"+
+            "ancestor::div[1]/following-sibling::div[1]//text()"
         ).getall()
 
         if not manufacturers: return None
@@ -96,10 +96,9 @@ class AmazonSpider(scrapy.Spider):
         # reformatting potential manufacturers
         manufacturers = list(map(self.reformat_string, manufacturers))
 
-        for manufacturer in manufacturers:
-            if manufacturer not in ("no", "yes"):
-                return manufacturer
-        
+        manufacturers = " ".join(manufacturers)
+        return self.remove_unwanted_words(manufacturers)
+
 
     def get_description(self, response):
         """Parses product's description from given product's page."""
@@ -111,11 +110,21 @@ class AmazonSpider(scrapy.Spider):
 
         # reformatting description
         description = list(map(self.reformat_string, description))
-        return " ".join(description)
+        description = " ".join(description)
+
+        return self.remove_unwanted_words(description)
 
     def reformat_string(self, string):
         """removes unwanted characters from the passed string"""
 
         string = re.sub(r'[^\x00-\x7F]|\n|:', "", string).strip().lower()
+        string = re.sub(r'\s+', " ", string)
+        return string
+
+    def remove_unwanted_words(self, string):
+        """removes unwanted words from the string"""
+
+        pattern = re.compile(r"no|yes|see|this|more|items|about|view|info")
+        string = re.sub(pattern, "", string)
         string = re.sub(r'\s+', " ", string)
         return string
