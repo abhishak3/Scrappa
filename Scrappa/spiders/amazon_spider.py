@@ -69,6 +69,10 @@ class AmazonSpider(scrapy.Spider):
 
         # formatting item_rating
         info["item_rating"] = info["item_rating"].strip().split()[0]
+        try:
+            info["item_rating"] = float(info["item_rating"])
+        except ValueError:
+            pass
 
         # save each entry to csv file
         with open("products_1.csv", "a") as csvFile:
