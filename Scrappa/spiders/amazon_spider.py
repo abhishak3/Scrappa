@@ -69,11 +69,18 @@ class AmazonSpider(scrapy.Spider):
     def get_manufacturer(self, response):
         """Parses manufacturer name from given product's page."""
 
-        # getting and reformatting potential manufacturers
-        manufacturers = response.xpath("//*[contains(text(), 'Manufacturer')]/following-sibling::*/text()").getall()
-        manufacturers = list(map(lambda string : re.sub(r"\u200f|\u200e|\n|\s|:", "", string).lower(), manufacturers))
+        def reformat_string(string):
+            """removes unwanted characters from the passed string"""
 
+            string = re.sub(r'[^\x00-\x7F]|\n|:', "", string).strip().lower()
+            string = re.sub(r'\s+', " ", string)
+            return string
+
+        manufacturers = response.xpath("//*[contains(text(), 'Manufacturer')]/following-sibling::*/text()").getall()
         if not manufacturers: return None
+
+        # reformatting potential manufacturers
+        manufacturers = list(map(reformat_string, manufacturers))
 
         for manufacturer in manufacturers:
             if manufacturer not in ("no", "yes"):
