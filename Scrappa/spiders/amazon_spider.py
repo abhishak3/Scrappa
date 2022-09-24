@@ -88,7 +88,7 @@ class AmazonSpider(scrapy.Spider):
         """Parses manufacturer name from given product's page."""
 
         manufacturers = response.xpath(
-            "//*[contains(text(), 'Manufacturer')]/following-sibling::*/text()"
+            "//*[contains(text(), 'Manufacturer')]/following-sibling::*//text()"
         ).getall()
 
         if not manufacturers: return None
