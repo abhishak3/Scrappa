@@ -6,8 +6,18 @@ class AmazonSpider(scrapy.Spider):
     name = "amazon"
     URL = "https://www.amazon.in/s?k=bags&crid=2M096C61O4MLT&qid=1653308124&sprefix=ba%2Caps%2C283&ref=sr_pg_1"
 
+    fieldnames = [
+        "item_name", "item_url", "item_price", "item_rating", 
+        "item_no_of_reviews", "asin", "description", "manufacturer"
+    ]
+
     # making requests to the URL
     def start_requests(self):
+        # open csv file and write headers
+        with open("products_1.csv", "w") as csvFile:
+            writer = csv.DictWriter(csvFile, fieldnames=self.fieldnames)
+            writer.writeheader()
+
         yield scrapy.Request(url=self.URL, callback=self.parse)
 
 
@@ -24,7 +34,7 @@ class AmazonSpider(scrapy.Spider):
             item_price = item.css("span.a-price-whole::text").get()
             item_rating = item.css("div.a-row.a-size-small span.a-icon-alt::text").get()
             item_no_of_reviews = item.css("span.a-size-base.s-underline-text::text").get()
-
+        
             items_info.append({
                 "item_name": item_name,
                 "item_url": item_url,
@@ -54,33 +64,30 @@ class AmazonSpider(scrapy.Spider):
         info["description"] = self.get_description(response)
         info["manufacturer"] = self.get_manufacturer(response)
 
-        # fieldnames for csv file
-        fieldnames = [
-            "item_name", "item_url", "item_price", "item_rating", 
-            "item_no_of_reviews", "description", "manufacturer", "asin"
-        ]
+        # getting absolute url
+        info["item_url"] = response.urljoin(info["item_url"])
+
+        # formatting item_rating
+        info["item_rating"] = info["item_rating"].strip().split()[0]
 
         # save each entry to csv file
         with open("products_1.csv", "a") as csvFile:
-            writer = csv.DictWriter(csvFile, fieldnames=fieldnames)
+            writer = csv.DictWriter(csvFile, fieldnames=self.fieldnames)
             writer.writerow(info)
 
 
     def get_manufacturer(self, response):
         """Parses manufacturer name from given product's page."""
 
-        def reformat_string(string):
-            """removes unwanted characters from the passed string"""
+        manufacturers = response.xpath(
+            "//*[contains(text(), 'Manufacturer')]/following-sibling::*/text()|"+
+            "//*[contains(text(), 'Manufacturer')]/ancestor::div/following-sibling::div//text()"
+        ).getall()
 
-            string = re.sub(r'[^\x00-\x7F]|\n|:', "", string).strip().lower()
-            string = re.sub(r'\s+', " ", string)
-            return string
-
-        manufacturers = response.xpath("//*[contains(text(), 'Manufacturer')]/following-sibling::*/text()").getall()
         if not manufacturers: return None
 
         # reformatting potential manufacturers
-        manufacturers = list(map(reformat_string, manufacturers))
+        manufacturers = list(map(self.reformat_string, manufacturers))
 
         for manufacturer in manufacturers:
             if manufacturer not in ("no", "yes"):
@@ -94,4 +101,14 @@ class AmazonSpider(scrapy.Spider):
             "//*[@class='product-facts-title']/following-sibling::*//text()|"+
             "//*[@id='feature-bullets' or @id='productDescription']//text()"
         ).getall()
+
+        # reformatting description
+        description = list(map(self.reformat_string, description))
         return " ".join(description)
+
+    def reformat_string(self, string):
+        """removes unwanted characters from the passed string"""
+
+        string = re.sub(r'[^\x00-\x7F]|\n|:', "", string).strip().lower()
+        string = re.sub(r'\s+', " ", string)
+        return string
